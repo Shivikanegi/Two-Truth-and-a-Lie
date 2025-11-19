@@ -126,6 +126,16 @@
     .leader-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:8px}
     .leader-item.top{background:linear-gradient(90deg,#fff7e6,#fff3e0)}
     .leader-item .place{font-weight:800;color:var(--accent);width:28px;text-align:center}
+    /* Winner announcement overlay */
+    .winner-announcement{position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(rgba(0,0,0,0.36),rgba(0,0,0,0.36));z-index:1200}
+    .winner-card{background:var(--card);padding:18px 20px;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,0.24);text-align:center;max-width:92%;width:520px}
+    .winner-card h2{margin:0;font-size:1.4rem}
+    .winner-card p{margin:8px 0 0 0;color:var(--muted)}
+    .winner-card button{margin-top:12px}
+    @media (prefers-reduced-motion: no-preference){
+      .winner-card{transform:scale(.98);animation:pop 320ms ease forwards}
+      @keyframes pop{to{transform:scale(1)}}
+    }
   </style>
 </head>
 <body>
@@ -159,13 +169,11 @@
       <div id="playerForm" class="form-card">
           <label for="username">Username</label>
           <input id="username" placeholder="e.g. SparkleSam" />
-          <label for="bio" style="margin-top:8px">Short bio</label>
-          <textarea id="bio" rows="2" placeholder="A playful fact... (optional)"></textarea>
+          <!-- Short bio removed to simplify mobile UI -->
           <label style="margin-top:8px">Choose avatar</label>
           <select id="avatarSelect"></select>
           <div style="display:flex;gap:6px;margin-top:8px">
             <button id="addPlayerBtn">Add Player</button>
-            <button id="uploadAvatar" class="ghost">Upload</button>
           </div>
           <div class="hint" style="margin-top:6px">Max 10 players. Avatars are fun SVGs.</div>
         </div>
@@ -221,31 +229,122 @@
     <aside class="assistant" aria-label="Assistant">
       <svg class="assist-art" viewBox="0 0 200 200" id="assistSVG">
         <defs>
+          <!-- Vibrant gradients for avatars -->
+          <linearGradient id="grad-fox" x1="0" x2="1">
+            <stop offset="0%" stop-color="#FF9A5B" />
+            <stop offset="60%" stop-color="#FF6B6B" />
+            <stop offset="100%" stop-color="#FFB86B" />
+          </linearGradient>
+          <linearGradient id="grad-dog" x1="0" x2="1">
+            <stop offset="0%" stop-color="#FFD184" />
+            <stop offset="100%" stop-color="#FFB27A" />
+          </linearGradient>
+          <linearGradient id="grad-cat" x1="0" x2="1">
+            <stop offset="0%" stop-color="#FFD36B" />
+            <stop offset="100%" stop-color="#FF8FAB" />
+          </linearGradient>
+          <linearGradient id="grad-panda" x1="0" x2="1">
+            <stop offset="0%" stop-color="#FFFFFF" />
+            <stop offset="100%" stop-color="#E6F3FF" />
+          </linearGradient>
+          <linearGradient id="grad-bunny" x1="0" x2="1">
+            <stop offset="0%" stop-color="#FFD9F0" />
+            <stop offset="100%" stop-color="#FFA3E0" />
+          </linearGradient>
+          <linearGradient id="grad-owl" x1="0" x2="1">
+            <stop offset="0%" stop-color="#A8D6FF" />
+            <stop offset="100%" stop-color="#6FB7FF" />
+          </linearGradient>
+          <linearGradient id="grad-parrot" x1="0" x2="1">
+            <stop offset="0%" stop-color="#7ef0ff" />
+            <stop offset="100%" stop-color="#7dffb2" />
+          </linearGradient>
+          <linearGradient id="grad-lion" x1="0" x2="1">
+            <stop offset="0%" stop-color="#FFD36B" />
+            <stop offset="100%" stop-color="#FFB27A" />
+          </linearGradient>
+          <!-- subtle inner shadow for depth -->
+          <filter id="avatarShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.14" />
+          </filter>
           <g id="fox">
             <rect x="0" y="0" width="200" height="200" rx="22" fill="#fff4f0"/>
             <g transform="translate(50,36)">
-              <ellipse cx="50" cy="72" rx="46" ry="50" fill="#FFB27A"/>
-              <path d="M22 62 Q50 20 78 62" fill="#fff"/>
-              <circle cx="36" cy="68" r="6" fill="#281A0A"/>
-              <circle cx="64" cy="68" r="6" fill="#281A0A"/>
-              <path d="M46 84 q4 6 8 0" stroke="#281A0A" stroke-width="2" fill="none"/>
+              <ellipse cx="50" cy="72" rx="46" ry="50" fill="url(#grad-fox)" filter="url(#avatarShadow)"/>
+              <path d="M22 62 Q50 20 78 62" fill="#fffaf5"/>
+              <circle cx="36" cy="68" r="6" fill="#2b1208"/>
+              <circle cx="64" cy="68" r="6" fill="#2b1208"/>
+              <path d="M46 84 q4 6 8 0" stroke="#2b1208" stroke-width="2" fill="none"/>
             </g>
           </g>
-          <g id="robot">
-            <rect x="0" y="0" width="200" height="200" rx="22" fill="#eaf8ff"/>
-            <g transform="translate(40,40)">
-              <rect x="18" y="18" width="100" height="80" rx="14" fill="#9bd7ff"/>
-              <circle cx="40" cy="58" r="8" fill="#073b4c"/>
-              <rect x="76" y="46" width="18" height="6" rx="3" fill="#073b4c"/>
+          <g id="dog">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#fff8f2"/>
+            <g transform="translate(36,32)">
+              <ellipse cx="64" cy="86" rx="52" ry="46" fill="url(#grad-dog)" filter="url(#avatarShadow)"/>
+              <ellipse cx="46" cy="76" rx="8" ry="10" fill="#5a3418"/>
+              <ellipse cx="82" cy="76" rx="8" ry="10" fill="#5a3418"/>
+              <path d="M56 98 q8 12 22 0" stroke="#5a3418" stroke-width="2" fill="none"/>
+              <rect x="28" y="44" width="10" height="18" rx="4" fill="url(#grad-dog)" transform="rotate(-20 33 53)"/>
+              <rect x="132" y="44" width="10" height="18" rx="4" fill="url(#grad-dog)" transform="rotate(20 137 53)"/>
             </g>
           </g>
-          <g id="monster">
-            <rect x="0" y="0" width="200" height="200" rx="22" fill="#f6fff3"/>
-            <g transform="translate(30,28)">
-              <ellipse cx="70" cy="80" rx="56" ry="46" fill="#b7ffb2"/>
-              <circle cx="50" cy="68" r="8" fill="#1b3a1b"/>
-              <circle cx="90" cy="68" r="8" fill="#1b3a1b"/>
-              <path d="M58 86 q12 18 28 0" stroke="#1b3a1b" stroke-width="2" fill="none"/>
+          <g id="panda">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#f7fbff"/>
+            <g transform="translate(30,30)">
+              <ellipse cx="70" cy="78" rx="52" ry="46" fill="url(#grad-panda)" filter="url(#avatarShadow)"/>
+              <circle cx="48" cy="70" r="10" fill="#0f1112"/>
+              <circle cx="92" cy="70" r="10" fill="#0f1112"/>
+              <ellipse cx="70" cy="98" rx="14" ry="8" fill="#0f1112"/>
+            </g>
+          </g>
+          <!-- Additional avatars -->
+          <g id="cat">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#fff7ec"/>
+            <g transform="translate(36,34)">
+              <ellipse cx="64" cy="80" rx="52" ry="46" fill="url(#grad-cat)" filter="url(#avatarShadow)"/>
+              <path d="M30 52 L48 36 L66 52" fill="#ffb27a"/>
+              <circle cx="50" cy="74" r="6" fill="#1f1209"/>
+              <circle cx="78" cy="74" r="6" fill="#1f1209"/>
+              <path d="M58 92 q6 8 12 0" stroke="#1f1209" stroke-width="2" fill="none"/>
+            </g>
+          </g>
+          <g id="bunny">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#fff8ff"/>
+            <g transform="translate(34,30)">
+              <ellipse cx="68" cy="86" rx="50" ry="46" fill="url(#grad-bunny)" filter="url(#avatarShadow)"/>
+              <rect x="56" y="18" width="14" height="36" rx="8" fill="url(#grad-bunny)" transform="rotate(-12 63 36)"/>
+              <rect x="86" y="18" width="14" height="36" rx="8" fill="url(#grad-bunny)" transform="rotate(12 93 36)"/>
+              <circle cx="56" cy="86" r="6" fill="#231f20"/>
+              <circle cx="80" cy="86" r="6" fill="#231f20"/>
+              <path d="M60 104 q8 10 16 0" stroke="#231f20" stroke-width="2" fill="none"/>
+            </g>
+          </g>
+          <g id="owl">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#f7fbff"/>
+            <g transform="translate(30,30)">
+              <ellipse cx="70" cy="80" rx="52" ry="46" fill="url(#grad-owl)" filter="url(#avatarShadow)"/>
+              <circle cx="50" cy="70" r="10" fill="#1e1e1e"/>
+              <circle cx="90" cy="70" r="10" fill="#1e1e1e"/>
+              <path d="M62 94 q8 10 26 0" stroke="#1e1e1e" stroke-width="2" fill="none"/>
+            </g>
+          </g>
+          <g id="parrot">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#f0fff9"/>
+            <g transform="translate(30,30)">
+              <ellipse cx="70" cy="78" rx="52" ry="46" fill="url(#grad-parrot)" filter="url(#avatarShadow)"/>
+              <path d="M40 68 q6 -24 40 -18" fill="#ffd36b"/>
+              <circle cx="56" cy="76" r="6" fill="#14411e"/>
+              <path d="M90 96 q12 6 28 -6" stroke="#14411e" stroke-width="2" fill="none"/>
+            </g>
+          </g>
+          <g id="lion">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#fff6ec"/>
+            <g transform="translate(34,30)">
+              <ellipse cx="68" cy="86" rx="50" ry="46" fill="url(#grad-lion)" filter="url(#avatarShadow)"/>
+              <circle cx="56" cy="76" r="6" fill="#3a1f0b"/>
+              <circle cx="80" cy="76" r="6" fill="#3a1f0b"/>
+              <path d="M60 100 q8 10 16 0" stroke="#3a1f0b" stroke-width="2" fill="none"/>
+              <circle cx="68" cy="58" r="26" fill="#ffbe6b" opacity="0.95"/>
             </g>
           </g>
         </defs>
@@ -260,6 +359,13 @@
   </div>
 
   <div class="confetti" id="confetti"></div>
+  <div id="winnerAnnounce" class="winner-announcement" style="display:none" aria-hidden="true">
+    <div class="winner-card" role="dialog" aria-modal="true">
+      <h2 id="winnerTitle">🎉 Winner!</h2>
+      <p id="winnerText">Congratulations</p>
+      <button id="closeWinner">Close</button>
+    </div>
+  </div>
 
   <script>
     // --- Game state ---
@@ -271,8 +377,13 @@
     // --- Preset avatars ---
     const AVATARS = [
       {id:'fox', label:'Playful Fox'},
-      {id:'robot', label:'Bleep Bot'},
-      {id:'monster', label:'Silly Monster'}
+      {id:'cat', label:'Cozy Cat'},
+      {id:'dog', label:'Happy Dog'},
+      {id:'panda', label:'Panda Pal'},
+      {id:'bunny', label:'Bouncy Bunny'},
+      {id:'owl', label:'Night Owl'},
+      {id:'parrot', label:'Party Parrot'},
+      {id:'lion', label:'Brave Lion'}
     ];
 
     const DARES = [
@@ -294,7 +405,6 @@
     const startBtn = document.getElementById('startBtn');
     const resetBtn = document.getElementById('resetBtn');
     const usernameEl = document.getElementById('username');
-    const bioEl = document.getElementById('bio');
     const submitterPanel = document.getElementById('submitterPanel');
     const submitterNameEl = document.getElementById('submitterName');
     const s1 = document.getElementById('s1');
@@ -329,7 +439,7 @@
         const el = document.createElement('div');el.className='player-card';
         el.innerHTML = `
           <div class="avatar">${renderAvatarSVG(p.avatar)}</div>
-          <div class="player-meta"><strong>${escapeHtml(p.name)}</strong><div class="muted">${escapeHtml(p.bio||'')}</div></div>
+          <div class="player-meta"><strong>${escapeHtml(p.name)}</strong></div>
           <div style="text-align:right"><div class="score">${p.score||0} pts</div><div class="muted" style="font-size:12px">#${idx+1}</div></div>`;
         playerListEl.appendChild(el);
       });
@@ -355,8 +465,11 @@
     }
 
     function renderAvatarSVG(id){
-      return `<svg width="48" height="48" viewBox="0 0 200 200">`+
-             document.querySelector('#' + id).innerHTML + `</svg>`;
+      // Use a <use> reference so the avatar defs render correctly across browsers
+      // Fallback: if no defs found, show a simple circle placeholder
+      const def = document.querySelector('#' + id);
+      if(!def) return `<svg width="48" height="48" viewBox="0 0 200 200"><circle cx="100" cy="100" r="80" fill="#eee"/></svg>`;
+      return `<svg width="48" height="48" viewBox="0 0 200 200" aria-hidden="true"><use href="#${id}"></use></svg>`;
     }
 
     function escapeHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -366,8 +479,8 @@
       const name = usernameEl.value.trim();
       if(!name) return alert('Please enter a username');
       if(players.length>=MAX_PLAYERS) return alert('Max players reached');
-      players.push({id:uid(),name, bio:bioEl.value.trim(), avatar:avatarSelect.value, score:0});
-      usernameEl.value='';bioEl.value='';avatarSelect.value=AVATARS[0].id;
+      players.push({id:uid(),name, avatar:avatarSelect.value, score:0});
+      usernameEl.value=''; avatarSelect.value=AVATARS[0].id;
       renderPlayers();
       assistantSay('Welcome ' + name + '! Ready to party 🎉');
     });
@@ -421,7 +534,7 @@
       const curEl = document.getElementById('currentGuesserName'); if(curEl) curEl.textContent='—';
       const hintEl = document.getElementById('guessHint'); if(hintEl) hintEl.textContent='';
       // assistant picks art
-      const art = pickRandom(['fox','robot','monster']);assistUse.setAttribute('href','#'+art);
+      const art = pickRandom(AVATARS.map(a=>a.id));assistUse.setAttribute('href','#'+art);
       assistantSay(`${submitter.name}, enter two truths and one lie!`);
       renderPlayers();
     }
@@ -499,8 +612,8 @@
           // move to next guesser or reveal
           roundState.nextGuesserIndex++;
           if(roundState.nextGuesserIndex >= roundState.guessOrder.length){
-            // all done
-            setTimeout(()=>revealAnswer(), 400);
+            // all done — start a short countdown before revealing the answer
+            setTimeout(()=>startRevealCountdown(3), 400);
           } else {
             updateGuessHint();
           }
@@ -508,6 +621,29 @@
         statementsArea.appendChild(s);
       });
       // If only one guesser (2 players total) they still get to guess.
+    }
+
+    // Start a visual (and optional spoken) countdown, then reveal the answer
+    function startRevealCountdown(seconds = 3){
+      let s = Math.max(0, Math.floor(seconds));
+      const prevText = assistantSpeech.textContent;
+      function tick(){
+        if(s > 0){
+          assistantSpeech.textContent = `Revealing in ${s}...`;
+          if(soundEnabled && window.speechSynthesis){
+            try{ window.speechSynthesis.speak(new SpeechSynthesisUtterance(String(s))); }catch(e){}
+          }
+          s--;
+          setTimeout(tick, 1000);
+        } else {
+          // show a short visual cue, but do NOT speak the final phrase
+          assistantSpeech.textContent = `Now!`;
+          setTimeout(()=>{
+            try{ revealAnswer(); }finally{ assistantSpeech.textContent = prevText; }
+          }, 250);
+        }
+      }
+      tick();
     }
 
     function revealAnswer(){
@@ -532,11 +668,14 @@
         assistantSay(`Nice! ${correctGuessers.map(g=>g.name).join(', ')} +1 point 🎉`);
         try{ if(typeof playPoint === 'function') playPoint(); if(typeof playCorrect === 'function') setTimeout(()=>playCorrect(),120); }catch(e){}
         triggerConfetti();
+        // Announce winners
+        try{ showWinnerAnnouncement(correctGuessers.map(g=>g.name)); }catch(e){}
       } else {
         // submitter gets the point
         const submitter = players.find(p=>p.id===roundState.submitterId);
         submitter.score=(submitter.score||0)+1;assistantSay(`${submitter.name} scores! Nobody guessed the lie.`);
         try{ if(typeof playPoint === 'function') playPoint(); if(typeof playIncorrect === 'function') setTimeout(()=>playIncorrect(),120); }catch(e){}
+        try{ showWinnerAnnouncement([submitter.name]); }catch(e){}
       }
 
       // Dares for wrong guessers (assign one random dare per loser and show them together)
@@ -613,6 +752,42 @@
     function playDare(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(520,0.06,'triangle',0,0.09); setTimeout(()=>playTone(760,0.05,'triangle',0,0.08),70); }); }
     function playCorrect(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(1400,0.06,'sine',0,0.12); setTimeout(()=>playTone(1800,0.05,'sine',0,0.09),80); }); }
     function playIncorrect(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(260,0.14,'sine',0,0.09); }); }
+
+    // Congratulatory winner sound
+    function playWinner(){
+      if(!soundEnabled) return;
+      ensureAudio().then(()=>{
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const seq = [880,1100,1400,1760];
+        seq.forEach((f,i)=> playTone(f, 0.12, 'sine', i * 0.12, 0.12));
+      });
+    }
+
+    // Show winner overlay and play fanfare
+    function showWinnerAnnouncement(names){
+      try{
+        const wrap = document.getElementById('winnerAnnounce');
+        const title = document.getElementById('winnerTitle');
+        const text = document.getElementById('winnerText');
+        if(!wrap || !title || !text) return;
+        const winnerText = Array.isArray(names) ? names.join(', ') : String(names || '');
+        title.textContent = `🎉 ${winnerText} ${Array.isArray(names) && names.length>1 ? 'win!' : 'wins!'}`;
+        text.textContent = `Great job — give them a round of applause!`;
+        wrap.style.display = 'flex'; wrap.setAttribute('aria-hidden','false');
+        // play a fanfare and confetti, but respect reduced-motion
+        const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if(!reduced){ playWinner(); triggerConfetti(); }
+      }catch(e){console.warn(e)}
+    }
+
+    // Close winner overlay
+    const closeWinnerBtn = document.getElementById('closeWinner');
+    if(closeWinnerBtn){
+      closeWinnerBtn.addEventListener('click', ()=>{
+        const wrap = document.getElementById('winnerAnnounce');
+        if(wrap){ wrap.style.display='none'; wrap.setAttribute('aria-hidden','true'); }
+      });
+    }
 
     // Global click listener for buttons to play click sound and ensure audio unlock
     document.addEventListener('click', (e)=>{
