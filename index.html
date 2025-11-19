@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Two Truths and a Lie — Party Game</title>
+  <style>
+    /* --- Theme & Reset --- */
+    :root{
+      --bg1: linear-gradient(135deg,#ffd6ff 0%, #b7f0ff 50%, #fff4b2 100%);
+      --card:#fff;
+      --accent:#ff6b6b;
+      --muted:#6b7280;
+      --glass: rgba(255,255,255,0.65);
+      --radius:18px;
+      --max-width:1100px;
+      --shadow: 0 8px 24px rgba(18,20,30,0.12);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: 'Segoe UI', Roboto, system-ui, -apple-system, 'Helvetica Neue', Arial;
+      background: var(--bg1);
+      display:flex;align-items:center;justify-content:center;
+      padding:28px;
+      -webkit-font-smoothing:antialiased;
+    }
+    .app{
+      width:100%;max-width:var(--max-width);
+      background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.85));
+      border-radius:24px;padding:18px;box-shadow:var(--shadow);
+      display:grid;grid-template-columns:320px 1fr 280px;gap:18px;align-items:start;
+    }
+    header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:6px 0}
+    .sub{color:var(--muted);font-size:13px}
+
+    /* --- Players Panel --- */
+    .players{background:var(--card);padding:12px;border-radius:16px}
+    .players h2{margin:0 0 8px 0;font-size:16px}
+    .player-list{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow:auto;padding-right:4px}
+    .player-card{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.9),#fff);box-shadow:0 4px 12px rgba(0,0,0,0.04)}
+    .avatar{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .player-meta{flex:1}
+    .player-meta strong{display:block}
+    .score{font-weight:700;color:var(--accent);font-size:16px}
+
+    /* --- Game Area --- */
+    .game-area{background:var(--card);padding:14px;border-radius:16px;min-height:420px}
+    .center-stage{display:flex;flex-direction:column;gap:12px}
+    .lobby-forms{display:flex;gap:8px}
+    .form-card{background:var(--glass);padding:10px;border-radius:12px;flex:1}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type=text],textarea,select{width:100%;padding:8px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);font-size:14px}
+    textarea{resize:vertical}
+    button{background:linear-gradient(90deg,#ff8fab,#ffd36b);border:none;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(255,107,107,0.14)}
+    button.ghost{background:transparent;border:1px dashed rgba(0,0,0,0.06)}
+
+    /* Statement cards */
+    .statements{display:flex;gap:10px;flex-wrap:wrap}
+    .statement{flex:1;min-width:180px;padding:12px;border-radius:12px;background:linear-gradient(180deg,#ffffff, #fff8f2);cursor:pointer;transition:transform .18s ease, box-shadow .18s}
+    .statement.selected{transform:translateY(-6px);box-shadow:0 18px 36px rgba(0,0,0,0.12)}
+    .statement.locked{opacity:0.7;pointer-events:none}
+    .statement .guess-badge{position:absolute;background:#ff8fab;color:white;padding:6px 10px;border-radius:999px;font-weight:700;font-size:13px;top:8px;left:8px;z-index:6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%}
+    .statement{position:relative}
+
+    /* Assistant panel */
+    .assistant{background:linear-gradient(180deg,#fffbf0,#fff);padding:12px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+    .assist-art{width:160px;height:160px}
+    .speech{background:var(--accent);color:white;padding:8px 12px;border-radius:999px;font-weight:700;display:inline-block}
+    .dare{background:linear-gradient(90deg,#7ef0ff,#b29bff);color:#07123b;padding:8px 12px;border-radius:12px;font-weight:700}
+
+    /* Confetti */
+    .confetti{position:fixed;left:0;right:0;top:0;pointer-events:none}
+    .confetti .p{position:absolute;width:10px;height:18px;opacity:0;transform:translateY(-10px) rotate(15deg);animation:fall 1600ms linear forwards}
+    @keyframes fall{0%{opacity:1;transform:translateY(-10px) rotate(10deg)}100%{opacity:1;transform:translateY(90vh) rotate(480deg)}}
+
+    /* Small responsiveness */
+    @media(max-width:1000px){.app{grid-template-columns:1fr;}
+      .assist-art{width:110px;height:110px}
+    }
+
+    /* playful touches */
+    .hint{font-size:13px;color:var(--muted)}
+    .muted{color:var(--muted)}
+    .leaderboard{margin-top:10px;padding:8px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.98),#fff);box-shadow:0 6px 18px rgba(0,0,0,0.04)}
+    .leaderboard h3{margin:0 0 6px 0;font-size:14px}
+    .leader-item{display:flex;align-items:center;gap:8px;padding:6px;border-radius:8px}
+    .leader-item.top{background:linear-gradient(90deg,#fff7e6,#fff3e0)}
+    .leader-item .place{font-weight:800;color:var(--accent);width:28px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="app" role="application">
+    <header>
+      <div>
+        <h1>🦊 Two Truths & a Lie — Party Mode</h1>
+        <div class="sub">Up to 10 players • No sign-in • Play locally</div>
+      </div>
+      <div style="text-align:right">
+        <div class="sub">Playful assistant & dares included</div>
+      </div>
+    </header>
+
+    <aside class="players" aria-label="Players">
+      <h2>Players</h2>
+      <div id="leaderboard" class="leaderboard" aria-live="polite" style="display:none">
+        <h3>Leaderboard</h3>
+        <div id="leaderList"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button id="startBtn">Start Game</button>
+        <button id="resetBtn" class="ghost">Reset</button>
+      </div>
+
+      <div class="player-list" id="playerList"></div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px dashed rgba(0,0,0,0.06)">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+      <div id="playerForm" class="form-card">
+          <label for="username">Username</label>
+          <input id="username" placeholder="e.g. SparkleSam" />
+          <label for="bio" style="margin-top:8px">Short bio</label>
+          <textarea id="bio" rows="2" placeholder="A playful fact... (optional)"></textarea>
+          <label style="margin-top:8px">Choose avatar</label>
+          <select id="avatarSelect"></select>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button id="addPlayerBtn">Add Player</button>
+            <button id="uploadAvatar" class="ghost">Upload</button>
+          </div>
+          <div class="hint" style="margin-top:6px">Max 10 players. Avatars are fun SVGs.</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="game-area">
+      <div class="center-stage">
+        <div id="statusBanner" class="muted">Lobby: add players and press Start</div>
+
+        <div id="submitterPanel" style="display:none">
+          <div class="form-card">
+            <div class="muted">Submitter: <strong id="submitterName"></strong></div>
+              <label>Enter three statements (two truths and one lie)</label>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input id="s1" placeholder="Statement 1" style="flex:1" />
+                  <label style="font-size:13px;white-space:nowrap"><input type="radio" name="lie" value="0"> mark lie</label>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input id="s2" placeholder="Statement 2" style="flex:1" />
+                  <label style="font-size:13px;white-space:nowrap"><input type="radio" name="lie" value="1"> mark lie</label>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input id="s3" placeholder="Statement 3" style="flex:1" />
+                  <label style="font-size:13px;white-space:nowrap"><input type="radio" name="lie" value="2"> mark lie</label>
+                </div>
+              </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="publishBtn">Publish Statements</button>
+              <button id="cancelPublish" class="ghost">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="guessPanel" style="display:none">
+          <div class="muted">Guess the lie — Submitted by <strong id="byWho"></strong></div>
+            <div id="currentGuesserDisplay" style="margin-top:6px;margin-bottom:6px;font-weight:800">Current guesser: <span id="currentGuesserName">—</span></div>
+            <div class="statements" id="statementsArea"></div>
+            <div class="hint" id="guessHint">Tap a card to submit your guess.</div>
+        </div>
+
+        <div id="revealPanel" style="display:none">
+          <div class="muted">Answer</div>
+          <div id="answerBox" class="form-card"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="nextRound">Next Round</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="assistant" aria-label="Assistant">
+      <svg class="assist-art" viewBox="0 0 200 200" id="assistSVG">
+        <defs>
+          <g id="fox">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#fff4f0"/>
+            <g transform="translate(50,36)">
+              <ellipse cx="50" cy="72" rx="46" ry="50" fill="#FFB27A"/>
+              <path d="M22 62 Q50 20 78 62" fill="#fff"/>
+              <circle cx="36" cy="68" r="6" fill="#281A0A"/>
+              <circle cx="64" cy="68" r="6" fill="#281A0A"/>
+              <path d="M46 84 q4 6 8 0" stroke="#281A0A" stroke-width="2" fill="none"/>
+            </g>
+          </g>
+          <g id="robot">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#eaf8ff"/>
+            <g transform="translate(40,40)">
+              <rect x="18" y="18" width="100" height="80" rx="14" fill="#9bd7ff"/>
+              <circle cx="40" cy="58" r="8" fill="#073b4c"/>
+              <rect x="76" y="46" width="18" height="6" rx="3" fill="#073b4c"/>
+            </g>
+          </g>
+          <g id="monster">
+            <rect x="0" y="0" width="200" height="200" rx="22" fill="#f6fff3"/>
+            <g transform="translate(30,28)">
+              <ellipse cx="70" cy="80" rx="56" ry="46" fill="#b7ffb2"/>
+              <circle cx="50" cy="68" r="8" fill="#1b3a1b"/>
+              <circle cx="90" cy="68" r="8" fill="#1b3a1b"/>
+              <path d="M58 86 q12 18 28 0" stroke="#1b3a1b" stroke-width="2" fill="none"/>
+            </g>
+          </g>
+        </defs>
+        <use id="assistUse" href="#fox"></use>
+      </svg>
+
+      <div class="speech" id="assistantSpeech">Hi! Add players to begin the party 🎉</div>
+      <div class="dare" id="assistantDare" style="display:none"></div>
+      <div style="margin-top:6px;font-size:13px;color:var(--muted)">Tips: Rotate who submits each round.</div>
+    </aside>
+
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    // --- Game state ---
+    const MAX_PLAYERS = 10;
+    let players = [];
+    let currentRound = 0; // index of submitter in players
+    let roundState = null; // {submitter, statements:[], correctIndex, guesses: {playerId:guessIndex}}
+
+    // --- Preset avatars ---
+    const AVATARS = [
+      {id:'fox', label:'Playful Fox'},
+      {id:'robot', label:'Bleep Bot'},
+      {id:'monster', label:'Silly Monster'}
+    ];
+
+    const DARES = [
+      'Sing 10 seconds of your favorite song 🎶',
+      'Do a silly dance for 8 seconds 🕺',
+      'Tell a joke in a dramatic voice 🤡',
+      'Make animal noises for 6 seconds 🐶',
+      'Show your best superhero pose 🦸',
+      'Draw a mustache on yourself with an emoji ✍️',
+      'Speak in rhymes for the next 2 turns 🔁',
+      'Pretend to be a statue for 5 seconds 🗿'
+    ];
+
+    // --- DOM refs ---
+    const playerListEl = document.getElementById('playerList');
+    const playerFormEl = document.getElementById('playerForm');
+    const avatarSelect = document.getElementById('avatarSelect');
+    const addPlayerBtn = document.getElementById('addPlayerBtn');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const usernameEl = document.getElementById('username');
+    const bioEl = document.getElementById('bio');
+    const submitterPanel = document.getElementById('submitterPanel');
+    const submitterNameEl = document.getElementById('submitterName');
+    const s1 = document.getElementById('s1');
+    const s2 = document.getElementById('s2');
+    const s3 = document.getElementById('s3');
+    const publishBtn = document.getElementById('publishBtn');
+    const cancelPublish = document.getElementById('cancelPublish');
+    const guessPanel = document.getElementById('guessPanel');
+    const statementsArea = document.getElementById('statementsArea');
+    const byWho = document.getElementById('byWho');
+    const statusBanner = document.getElementById('statusBanner');
+    const assistUse = document.getElementById('assistUse');
+    const assistantSpeech = document.getElementById('assistantSpeech');
+    const assistantDare = document.getElementById('assistantDare');
+    const revealPanel = document.getElementById('revealPanel');
+    const answerBox = document.getElementById('answerBox');
+    const nextRoundBtn = document.getElementById('nextRound');
+    const confettiHolder = document.getElementById('confetti');
+
+    // --- Init avatar select ---
+    AVATARS.forEach(a => {
+      const opt = document.createElement('option');opt.value=a.id;opt.textContent=a.label;avatarSelect.appendChild(opt);
+    });
+
+    // --- Helpers ---
+    function uid(){return 'p'+Math.random().toString(36).slice(2,9)}
+    function pickRandom(arr){return arr[Math.floor(Math.random()*arr.length)]}
+
+    function renderPlayers(){
+      playerListEl.innerHTML='';
+      players.forEach((p,idx)=>{
+        const el = document.createElement('div');el.className='player-card';
+        el.innerHTML = `
+          <div class="avatar">${renderAvatarSVG(p.avatar)}</div>
+          <div class="player-meta"><strong>${escapeHtml(p.name)}</strong><div class="muted">${escapeHtml(p.bio||'')}</div></div>
+          <div style="text-align:right"><div class="score">${p.score||0} pts</div><div class="muted" style="font-size:12px">#${idx+1}</div></div>`;
+        playerListEl.appendChild(el);
+      });
+      updateStartState();
+      renderLeaderboard();
+    }
+
+    function renderLeaderboard(){
+      const board = document.getElementById('leaderboard');
+      const list = document.getElementById('leaderList');
+      if(!board || !list) return;
+      if(players.length===0){ board.style.display='none'; list.innerHTML=''; return; }
+      board.style.display='block';
+      const sorted = [...players].sort((a,b)=> (b.score||0) - (a.score||0));
+      list.innerHTML = '';
+      const topScore = sorted.length ? (sorted[0].score||0) : 0;
+      sorted.forEach((p, idx)=>{
+        const item = document.createElement('div');
+        item.className = 'leader-item' + (((p.score||0)===topScore && topScore>0) ? ' top' : '');
+        item.innerHTML = `<div class="place">${idx+1}</div><div class="avatar" style="width:36px;height:36px;border-radius:8px;overflow:hidden">${renderAvatarSVG(p.avatar)}</div><div style="flex:1"><strong>${escapeHtml(p.name)}</strong></div><div style="font-weight:800;color:var(--accent)">${p.score||0}</div>`;
+        list.appendChild(item);
+      });
+    }
+
+    function renderAvatarSVG(id){
+      return `<svg width="48" height="48" viewBox="0 0 200 200">`+
+             document.querySelector('#' + id).innerHTML + `</svg>`;
+    }
+
+    function escapeHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+    // --- Player actions ---
+    addPlayerBtn.addEventListener('click', ()=>{
+      const name = usernameEl.value.trim();
+      if(!name) return alert('Please enter a username');
+      if(players.length>=MAX_PLAYERS) return alert('Max players reached');
+      players.push({id:uid(),name, bio:bioEl.value.trim(), avatar:avatarSelect.value, score:0});
+      usernameEl.value='';bioEl.value='';avatarSelect.value=AVATARS[0].id;
+      renderPlayers();
+      assistantSay('Welcome ' + name + '! Ready to party 🎉');
+    });
+
+    startBtn.addEventListener('click', ()=>{
+      if(players.length<2) return alert('Add at least 2 players to start');
+      currentRound = 0; players.forEach(p=>p.score=0);
+      roundState=null; updateUIForRound(); assistantSay('Game started!');
+      // hide the add-player form while game is running
+      if(playerFormEl) playerFormEl.style.display = 'none';
+    });
+
+    function resetGame(){
+      // fully reset game state and UI
+      players = [];
+      currentRound = 0;
+      roundState = null;
+      // clear UI panels
+      submitterPanel.style.display='none';
+      guessPanel.style.display='none';
+      revealPanel.style.display='none';
+      assistantDare.style.display='none';
+      confettiHolder.innerHTML='';
+      // show add-player form again
+      if(playerFormEl) playerFormEl.style.display = 'block';
+      renderPlayers();
+      updateUIForRound();
+      assistantSay('All reset — start a new party!');
+    }
+
+    resetBtn.addEventListener('click', ()=>{
+      // immediate reset on tap (no confirm) to match quick-restart UX
+      resetGame();
+    });
+
+    // --- Round flow ---
+    function updateStartState(){
+      startBtn.disabled = players.length<2;
+    }
+
+    function updateUIForRound(){
+      // reset panels
+      submitterPanel.style.display='none';guessPanel.style.display='none';revealPanel.style.display='none';assistantDare.style.display='none';
+      if(!players.length){statusBanner.textContent='Lobby: add players and press Start';assistUse.setAttribute('href','#fox');assistantSay('Hi! Add players to begin the party 🎉');renderPlayers();return}
+      const submitter = players[currentRound % players.length];
+      statusBanner.textContent = `Round: ${currentRound+1} — ${submitter.name} is the Submitter`;
+      // show submitter panel
+      submitterPanel.style.display='block';submitterNameEl.textContent = submitter.name;
+      s1.value='';s2.value='';s3.value='';
+      // clear guesser display
+      const curEl = document.getElementById('currentGuesserName'); if(curEl) curEl.textContent='—';
+      const hintEl = document.getElementById('guessHint'); if(hintEl) hintEl.textContent='';
+      // assistant picks art
+      const art = pickRandom(['fox','robot','monster']);assistUse.setAttribute('href','#'+art);
+      assistantSay(`${submitter.name}, enter two truths and one lie!`);
+      renderPlayers();
+    }
+
+    publishBtn.addEventListener('click', ()=>{
+      const a = s1.value.trim(), b=s2.value.trim(), c=s3.value.trim();
+      if(!a||!b||!c) return alert('Please fill all three statements');
+      const sel = document.querySelector('input[name="lie"]:checked');
+      if(!sel) return alert('Please mark which statement is the LIE before publishing');
+      const lieIndex = parseInt(sel.value,10);
+      const submitter = players[currentRound % players.length];
+      roundState = {submitterId:submitter.id, statements:[a,b,c], correctIndex:lieIndex, guesses:{}}
+      // clear radios for next time
+      document.querySelectorAll('input[name="lie"]').forEach(r=>r.checked=false);
+      // show guesses to others
+      showGuesserView(submitter.name);
+    });
+
+    cancelPublish.addEventListener('click', ()=>{
+      s1.value='';s2.value='';s3.value='';
+      document.querySelectorAll('input[name="lie"]').forEach(r=>r.checked=false);
+      assistantSay('Take your time — publish when ready!')
+    });
+
+    function showGuesserView(submitterName){
+      submitterPanel.style.display='none';guessPanel.style.display='block';revealPanel.style.display='none';
+      byWho.textContent = submitterName;statementsArea.innerHTML='';
+      // randomize statements order
+      const order = [0,1,2].sort(()=>Math.random()-0.5);
+      roundState.displayOrder = order;
+      const playersWhoGuess = players.filter(p=>p.id!==roundState.submitterId);
+      assistantSay(`Guessers: tap the card that's the lie!`);
+
+      // build guess order: players excluding submitter, starting from next after submitter in players list
+      const submitterIndex = players.findIndex(p=>p.id===roundState.submitterId);
+      const ordered = [];
+      for(let i=1;i<players.length;i++){
+        const idx = (submitterIndex + i) % players.length; ordered.push(players[idx].id);
+      }
+      roundState.guessOrder = ordered; roundState.nextGuesserIndex = 0;
+      // show initial prompt of whose turn
+      function updateGuessHint(){
+        const idx = roundState.nextGuesserIndex || 0;
+        const gid = roundState.guessOrder[idx];
+        const g = players.find(p=>p.id===gid);
+        const friendly = g ? g.name : 'Next player';
+        const hintEl = document.getElementById('guessHint');
+        const curEl = document.getElementById('currentGuesserName');
+        if(curEl) curEl.textContent = friendly;
+        if(hintEl) hintEl.textContent = `Current guesser: ${friendly} — Tap a card to guess.`;
+      }
+      updateGuessHint();
+
+      order.forEach((si,i)=>{
+        const s = document.createElement('div');
+        s.className='statement';
+        s.setAttribute('data-source-index', si);
+        s.innerHTML = `<div style="font-weight:700">${String.fromCharCode(65+i)}.</div><div style="margin-top:6px">${escapeHtml(roundState.statements[si])}</div>`;
+        s.addEventListener('click', ()=>{
+          // only allow the current guesser to make this guess
+          const currentGuesserId = roundState.guessOrder[roundState.nextGuesserIndex];
+          const currentGuesser = players.find(p=>p.id===currentGuesserId);
+          if(!currentGuesser) return;
+          // prevent double-guess by same player
+          if(roundState.guesses[currentGuesserId]!=null) return assistantSay(`${currentGuesser.name}, you already guessed`);
+          const clickedIndex = parseInt(s.getAttribute('data-source-index'),10);
+          roundState.guesses[currentGuesserId] = clickedIndex;
+          // add a small badge showing who guessed here
+          const badge = document.createElement('div'); badge.className='guess-badge';
+          badge.textContent = currentGuesser.name;
+          s.appendChild(badge);
+          assistantSay(`${currentGuesser.name} guessed!`);
+          // move to next guesser or reveal
+          roundState.nextGuesserIndex++;
+          if(roundState.nextGuesserIndex >= roundState.guessOrder.length){
+            // all done
+            setTimeout(()=>revealAnswer(), 400);
+          } else {
+            updateGuessHint();
+          }
+        });
+        statementsArea.appendChild(s);
+      });
+      // If only one guesser (2 players total) they still get to guess.
+    }
+
+    function revealAnswer(){
+      guessPanel.style.display='none';revealPanel.style.display='block';
+      const correctIndex = roundState.correctIndex;
+      const correctStatement = roundState.statements[correctIndex];
+      answerBox.innerHTML = `<div style="font-weight:800">Lie:</div><div style="margin-top:8px">${escapeHtml(correctStatement)}</div>`;
+
+      // scoring
+      const guessers = players.filter(p=>p.id!==roundState.submitterId);
+      let anyoneCorrect=false;let correctGuessers=[];let wrongGuessers=[];
+      guessers.forEach(g=>{
+        const guess = roundState.guesses[g.id];
+        if(guess==null){wrongGuessers.push(g);return}
+        if(guess===correctIndex){anyoneCorrect=true;correctGuessers.push(g);}
+        else wrongGuessers.push(g);
+      });
+
+      if(anyoneCorrect){
+        correctGuessers.forEach(g=>g.score=(g.score||0)+1);
+        assistantSay(`Nice! ${correctGuessers.map(g=>g.name).join(', ')} +1 point 🎉`);
+        triggerConfetti();
+      } else {
+        // submitter gets the point
+        const submitter = players.find(p=>p.id===roundState.submitterId);
+        submitter.score=(submitter.score||0)+1;assistantSay(`${submitter.name} scores! Nobody guessed the lie.`);
+      }
+
+      // Dares for wrong guessers (assign one random dare per loser and show them together)
+      if(wrongGuessers.length){
+        const dares = wrongGuessers.map(w=>({name:w.name, dare: pickRandom(DARES)}));
+        // build combined HTML
+        assistantDare.style.display='block';
+        assistantDare.innerHTML = dares.map(d=>`<div style="margin-bottom:8px"><strong>${escapeHtml(d.name)}</strong>: ${escapeHtml(d.dare)}</div>`).join('');
+        assistantSay(`Dares for ${dares.map(d=>d.name).join(', ')} — have fun!`);
+        // small animate pulse
+        assistantDare.animate([{transform:'scale(0.98)',opacity:0.95},{transform:'scale(1)',opacity:1}],{duration:420,iterations:1});
+      }
+
+      renderPlayers();
+      // clear current guesser display
+      const curEl = document.getElementById('currentGuesserName'); if(curEl) curEl.textContent='—';
+      const hintEl = document.getElementById('guessHint'); if(hintEl) hintEl.textContent='';
+    }
+
+    function showDareForPlayer(name,dare){
+      assistantDare.style.display='block';assistantDare.textContent = `${name}: ${dare}`;
+      assistantSay('Oh! A dare — ' + name + ', ' + dare);
+      // small animated bounce via CSS
+      assistantDare.animate([{transform:'translateY(-6px)'},{transform:'translateY(0)'}],{duration:550,iterations:1});
+    }
+
+    nextRoundBtn.addEventListener('click', ()=>{
+      currentRound = (currentRound+1) % players.length;roundState=null;updateUIForRound();
+    });
+
+    function assistantSay(text){assistantSpeech.textContent = text}
+
+    function triggerConfetti(){
+      confettiHolder.innerHTML='';
+      for(let i=0;i<40;i++){
+        const p = document.createElement('div');p.className='p';
+        p.style.left = Math.random()*100+'%';p.style.background = ['#ffd36b','#ff8fab','#7ef0ff','#b29bff'][Math.floor(Math.random()*4)];
+        p.style.animationDelay = (Math.random()*400)+'ms';p.style.top = (Math.random()*10)+'vh';
+        confettiHolder.appendChild(p);
+      }
+      setTimeout(()=>confettiHolder.innerHTML='',1800);
+    }
+
+    // --- small polyfills / UX helpers ---
+    document.addEventListener('DOMContentLoaded', ()=>{renderPlayers();});
+
+  </script>
+</body>
+</html>
