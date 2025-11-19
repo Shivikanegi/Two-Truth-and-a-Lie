@@ -82,6 +82,42 @@
       .assist-art{width:110px;height:110px}
     }
 
+    /* Mobile-specific adjustments for touch devices */
+    @media (max-width:600px) {
+      body{padding:12px}
+      .app{padding:12px;border-radius:14px;gap:12px}
+      header{flex-direction:column;align-items:flex-start;gap:8px}
+      h1{font-size:18px;margin:4px 0}
+      .sub{font-size:12px}
+
+      /* Players panel tweaks */
+      .players{padding:10px}
+      .player-list{max-height:320px}
+      .player-card{gap:10px;padding:10px;border-radius:10px}
+      .avatar{width:40px;height:40px;border-radius:10px}
+      .leader-item .avatar{width:32px;height:32px}
+
+      /* Forms and buttons become touch-friendly and full-width */
+      .lobby-forms{flex-direction:column}
+      .form-card{padding:12px}
+      input[type=text],textarea,select{padding:12px;font-size:16px}
+      textarea{min-height:72px}
+      button{padding:12px;border-radius:12px;font-size:16px}
+      .players > div[style*="display:flex"]{flex-direction:column}
+      .players > div[style*="display:flex"] button{width:100%}
+
+      /* Statement cards stack and enlarge for easier tapping */
+      .statements{flex-direction:column}
+      .statement{min-width:unset;padding:16px;font-size:16px}
+      .statement .guess-badge{max-width:85%}
+
+      /* Assistant art sizing */
+      .assist-art{width:120px;height:120px}
+
+      /* Confetti smaller on small screens */
+      .confetti .p{width:8px;height:14px}
+    }
+
     /* playful touches */
     .hint{font-size:13px;color:var(--muted)}
     .muted{color:var(--muted)}
@@ -99,8 +135,9 @@
         <h1>🦊 Two Truths & a Lie — Party Mode</h1>
         <div class="sub">Up to 10 players • No sign-in • Play locally</div>
       </div>
-      <div style="text-align:right">
+      <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <div class="sub">Playful assistant & dares included</div>
+        <button id="soundToggle" aria-pressed="false" title="Toggle sound" style="background:transparent;border:none;cursor:pointer;font-size:18px">🔊</button>
       </div>
     </header>
 
@@ -390,6 +427,7 @@
     }
 
     publishBtn.addEventListener('click', ()=>{
+      try{ if(typeof playSubmit === 'function') playSubmit(); }catch(e){}
       const a = s1.value.trim(), b=s2.value.trim(), c=s3.value.trim();
       if(!a||!b||!c) return alert('Please fill all three statements');
       const sel = document.querySelector('input[name="lie"]:checked');
@@ -444,6 +482,7 @@
         s.setAttribute('data-source-index', si);
         s.innerHTML = `<div style="font-weight:700">${String.fromCharCode(65+i)}.</div><div style="margin-top:6px">${escapeHtml(roundState.statements[si])}</div>`;
         s.addEventListener('click', ()=>{
+          try{ if(typeof playClick === 'function') playClick(); }catch(e){}
           // only allow the current guesser to make this guess
           const currentGuesserId = roundState.guessOrder[roundState.nextGuesserIndex];
           const currentGuesser = players.find(p=>p.id===currentGuesserId);
@@ -472,6 +511,7 @@
     }
 
     function revealAnswer(){
+      try{ if(typeof playReveal === 'function') playReveal(); }catch(e){}
       guessPanel.style.display='none';revealPanel.style.display='block';
       const correctIndex = roundState.correctIndex;
       const correctStatement = roundState.statements[correctIndex];
@@ -490,11 +530,13 @@
       if(anyoneCorrect){
         correctGuessers.forEach(g=>g.score=(g.score||0)+1);
         assistantSay(`Nice! ${correctGuessers.map(g=>g.name).join(', ')} +1 point 🎉`);
+        try{ if(typeof playPoint === 'function') playPoint(); if(typeof playCorrect === 'function') setTimeout(()=>playCorrect(),120); }catch(e){}
         triggerConfetti();
       } else {
         // submitter gets the point
         const submitter = players.find(p=>p.id===roundState.submitterId);
         submitter.score=(submitter.score||0)+1;assistantSay(`${submitter.name} scores! Nobody guessed the lie.`);
+        try{ if(typeof playPoint === 'function') playPoint(); if(typeof playIncorrect === 'function') setTimeout(()=>playIncorrect(),120); }catch(e){}
       }
 
       // Dares for wrong guessers (assign one random dare per loser and show them together)
@@ -504,6 +546,7 @@
         assistantDare.style.display='block';
         assistantDare.innerHTML = dares.map(d=>`<div style="margin-bottom:8px"><strong>${escapeHtml(d.name)}</strong>: ${escapeHtml(d.dare)}</div>`).join('');
         assistantSay(`Dares for ${dares.map(d=>d.name).join(', ')} — have fun!`);
+        try{ if(typeof playDare === 'function') playDare(); }catch(e){}
         // small animate pulse
         assistantDare.animate([{transform:'scale(0.98)',opacity:0.95},{transform:'scale(1)',opacity:1}],{duration:420,iterations:1});
       }
@@ -539,6 +582,58 @@
     }
 
     // --- small polyfills / UX helpers ---
+    // --- Sound effects (WebAudio) ---
+    let audioCtx = null;
+    let soundEnabled = true;
+    function ensureAudio(){
+      if(audioCtx) return Promise.resolve();
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return Promise.resolve();
+    }
+
+    function now(){ return audioCtx ? audioCtx.currentTime : 0 }
+
+    function playTone(freq, duration = 0.08, type='sine', when=0, volume=0.08){
+      if(!soundEnabled) return;
+      if(!audioCtx) return; // ensureAudio should have been called
+      const t = audioCtx.currentTime + when;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(volume, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + duration);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + duration + 0.02);
+    }
+
+    function playClick(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(1200,0.04,'square',0,0.06); }); }
+    function playSubmit(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(880,0.06,'sine',0,0.08); setTimeout(()=>playTone(1100,0.05,'sine',0,0.07),70); }); }
+    function playReveal(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(520,0.08,'sawtooth',0,0.09); setTimeout(()=>playTone(420,0.12,'sine',0,0.07),90); }); }
+    function playPoint(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(1200,0.05,'sine',0,0.09); setTimeout(()=>playTone(1500,0.06,'sine',0,0.08),60); setTimeout(()=>playTone(1800,0.06,'sine',0,0.07),130); }); }
+    function playDare(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(520,0.06,'triangle',0,0.09); setTimeout(()=>playTone(760,0.05,'triangle',0,0.08),70); }); }
+    function playCorrect(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(1400,0.06,'sine',0,0.12); setTimeout(()=>playTone(1800,0.05,'sine',0,0.09),80); }); }
+    function playIncorrect(){ if(!soundEnabled) return; ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); playTone(260,0.14,'sine',0,0.09); }); }
+
+    // Global click listener for buttons to play click sound and ensure audio unlock
+    document.addEventListener('click', (e)=>{
+      const btn = e.target.closest && e.target.closest('button');
+      if(btn){
+        // allow first user gesture to initialize audio
+        ensureAudio().then(()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); });
+        if(btn.id !== 'soundToggle') playClick();
+      }
+    });
+
+    // sound toggle button wiring
+    const soundToggleBtn = document.getElementById('soundToggle');
+    if(soundToggleBtn){
+      soundToggleBtn.addEventListener('click', ()=>{
+        soundEnabled = !soundEnabled;
+        soundToggleBtn.textContent = soundEnabled ? '🔊' : '🔈';
+        soundToggleBtn.setAttribute('aria-pressed', String(!soundEnabled));
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', ()=>{renderPlayers();});
 
   </script>
