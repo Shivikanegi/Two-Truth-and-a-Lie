@@ -44,6 +44,43 @@
     .players h2{margin:0 0 8px 0;font-size:16px}
     .player-list{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow:auto;padding-right:4px}
     .player-card{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.9),#fff);box-shadow:0 4px 12px rgba(0,0,0,0.04)}
+    .player-card{position:relative;padding-right:64px;overflow:visible}
+    /* place badge above the card so it doesn't overlap scores/names */
+    .turn-badge{position:absolute;right:12px;left:auto;top:-12px;color:white;padding:6px 10px;border-radius:999px;font-weight:800;font-size:13px;box-shadow:0 8px 20px rgba(0,0,0,0.14);display:flex;align-items:center;gap:8px;z-index:40}
+    .turn-badge .emoji{font-size:18px}
+    .turn-badge .label{font-size:12px;opacity:0.95}
+    .player-card.highlight-submit{border:2px solid rgba(255,107,107,0.18);box-shadow:0 16px 36px rgba(255,107,107,0.08);background:linear-gradient(180deg, rgba(255,245,245,0.9), rgba(255,240,240,0.85));}
+    .player-card.highlight-guess{border:2px dashed rgba(126,240,255,0.18);box-shadow:0 16px 36px rgba(126,240,255,0.06);background:linear-gradient(180deg, rgba(240,255,255,0.9), rgba(240,250,255,0.85));}
+    .turn-badge.submit{background:linear-gradient(90deg,#ff8fab,#ff6b6b)}
+    .turn-badge.guess{background:linear-gradient(90deg,#7ef0ff,#6fb7ff);color:#07123b}
+
+    /* Role banner inside panels */
+    .role-banner{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;font-weight:800}
+    .role-banner .rb-emoji{font-size:18px}
+    .role-banner.submit{background:linear-gradient(90deg,#fff0f2,#ffe6e6);color:#7a1f1f;border:1px solid rgba(255,107,107,0.12)}
+    .role-banner.guess{background:linear-gradient(90deg,#f0fdff,#eef6ff);color:#063245;border:1px solid rgba(126,240,255,0.12)}
+
+    /* Assistant pointer — small animated cue */
+    .assistant-pointer{margin-top:8px;display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:linear-gradient(90deg,#fffef0,#f0fff8);box-shadow:0 8px 20px rgba(0,0,0,0.06);font-weight:700}
+    .assistant-pointer .ap-emoji{font-size:20px}
+    .assistant-pointer.anim-bounce{animation:ap-bounce 900ms ease-in-out infinite}
+    @keyframes ap-bounce{0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)}}
+
+    /* Make badges slightly smaller on very small screens */
+    @media (max-width:420px){
+      .turn-badge{padding:4px 8px;font-size:12px;right:8px;top:-10px}
+      .turn-badge .emoji{font-size:14px}
+      .player-card{padding-right:54px}
+    }
+
+    /* Highlight only the sender's name area (no text label). */
+    .player-meta.highlight-sender{position:relative;z-index:2;padding:6px 10px;border-radius:10px;background:linear-gradient(90deg,#fff7f7,#fff2f2);border:2px solid rgba(255,107,107,0.22);box-shadow:0 10px 30px rgba(255,107,107,0.08);animation:sender-pulse 1600ms ease-in-out infinite}
+    @keyframes sender-pulse{0%{box-shadow:0 8px 20px rgba(255,107,107,0.06)}50%{box-shadow:0 16px 36px rgba(255,107,107,0.09)}100%{box-shadow:0 8px 20px rgba(255,107,107,0.06)}}
+
+    /* Active avatar area at bottom of game area */
+    .active-avatar{display:flex;align-items:center;justify-content:center;padding:10px;margin-top:12px}
+    .active-avatar .large-avatar{width:84px;height:84px;border-radius:14px;box-shadow:0 10px 30px rgba(18,20,30,0.12);overflow:hidden;background:white;display:flex;align-items:center;justify-content:center}
+    @media (max-width:420px){ .active-avatar .large-avatar{width:68px;height:68px} }
     .avatar{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .player-meta{flex:1}
     .player-meta strong{display:block}
@@ -205,10 +242,11 @@
     <main class="game-area">
       <div class="center-stage">
         <div id="statusBanner" class="muted">Lobby: add players and press Start</div>
+        <div id="roleStatus" class="muted" style="margin-top:6px"></div>
 
         <div id="submitterPanel" style="display:none">
           <div class="form-card">
-            <div class="muted">Submitter: <strong id="submitterName"></strong></div>
+            <div class="muted"><strong id="submitterName"></strong></div>
               <label>Enter three statements (two truths and one lie)</label>
               <div style="display:flex;flex-direction:column;gap:6px">
                 <div style="display:flex;gap:8px;align-items:center">
@@ -380,6 +418,11 @@
 
   </div>
 
+  <!-- active avatar shown for the current sender (large, centered) -->
+  <div id="activeAvatarHolder" class="active-avatar" aria-hidden="true" style="display:none">
+    <div id="activeAvatar" class="large-avatar"></div>
+  </div>
+
   <div class="confetti" id="confetti"></div>
   <div id="winnerAnnounce" class="winner-announcement" style="display:none" aria-hidden="true">
     <div class="winner-card" role="dialog" aria-modal="true">
@@ -438,6 +481,7 @@
     const statementsArea = document.getElementById('statementsArea');
     const byWho = document.getElementById('byWho');
     const statusBanner = document.getElementById('statusBanner');
+    const roleStatus = document.getElementById('roleStatus');
     const assistUse = document.getElementById('assistUse');
     const assistantSpeech = document.getElementById('assistantSpeech');
     const assistantDare = document.getElementById('assistantDare');
@@ -458,7 +502,8 @@
     function renderPlayers(){
       playerListEl.innerHTML='';
       players.forEach((p,idx)=>{
-        const el = document.createElement('div');el.className='player-card';
+        const el = document.createElement('div'); el.className='player-card'; el.setAttribute('data-player-id', p.id);
+        // optionally show a small role emoji beside the avatar if role present (JS will add badge when highlighting)
         el.innerHTML = `
           <div class="avatar">${renderAvatarSVG(p.avatar)}</div>
           <div class="player-meta"><strong>${escapeHtml(p.name)}</strong></div>
@@ -496,13 +541,112 @@
 
     function escapeHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
+    // --- Highlight helpers for submitter / guesser ---
+    function clearAllPlayerHighlights(){
+      document.querySelectorAll('.player-card.highlight-submit, .player-card.highlight-guess').forEach(el=>{
+        el.classList.remove('highlight-submit','highlight-guess');
+        const b = el.querySelector('.turn-badge'); if(b) b.remove();
+      });
+      // remove sender name highlight
+      document.querySelectorAll('.player-meta.highlight-sender').forEach(m=>{ m.classList.remove('highlight-sender'); });
+      // hide the active avatar display
+      try{ hideActiveAvatar(); }catch(e){}
+    }
+    function clearGuessHighlights(){
+      document.querySelectorAll('.player-card.highlight-guess').forEach(el=>{
+        el.classList.remove('highlight-guess');
+        const b = el.querySelector('.turn-badge'); if(b) b.remove();
+      });
+    }
+    function highlightPlayerById(id, type){
+      if(!id) return;
+      const el = document.querySelector('.player-card[data-player-id="'+id+'"]');
+      if(!el) return;
+      // remove existing same-type highlights
+      if(type === 'submit'){
+        document.querySelectorAll('.player-card.highlight-submit').forEach(x=>{ x.classList.remove('highlight-submit'); const b = x.querySelector('.turn-badge'); if(b) b.remove(); });
+      } else if(type === 'guess'){
+        clearGuessHighlights();
+      }
+      el.classList.add(type === 'submit' ? 'highlight-submit' : 'highlight-guess');
+      // If submitter: highlight only the name box and show active avatar; do not add textual badge
+      if(type === 'submit'){
+        const meta = el.querySelector('.player-meta'); if(meta) meta.classList.add('highlight-sender');
+        try{ showActiveAvatarById(id); }catch(e){}
+        // remove any existing badge to avoid duplicate labels
+        const existing = el.querySelector('.turn-badge'); if(existing) existing.remove();
+        return;
+      }
+      // For guessers, keep the compact badge with emoji and label
+      const emoji = '🕵️';
+      const badge = document.createElement('div'); badge.className='turn-badge guess'; badge.innerHTML = `<span class="emoji">${emoji}</span><span class="label">Guesser</span>`;
+      const existing = el.querySelector('.turn-badge'); if(existing) existing.remove();
+      el.appendChild(badge);
+    }
+
+    // show a small banner inside the submitter panel
+    function showSubmitterBanner(name){ /* intentionally no-op: textual label removed per UI change */ }
+
+    function hideSubmitterBanner(){ const b = document.getElementById('submitterRoleBadge'); if(b) b.remove(); }
+
+    // show small banner inside guesser panel
+    function showGuesserBanner(name){
+      if(!guessPanel) return;
+      let b = document.getElementById('guesserRoleBadge');
+      if(!b){ b = document.createElement('div'); b.id='guesserRoleBadge'; b.className='role-banner guess'; guessPanel.insertBefore(b, guessPanel.firstChild); }
+      b.innerHTML = `<span class="rb-emoji">🕵️</span><span><strong>${escapeHtml(name)}</strong></span>`;
+    }
+
+    function hideGuesserBanner(){ const b = document.getElementById('guesserRoleBadge'); if(b) b.remove(); }
+
+    // Show a larger avatar for the active sender at the bottom area
+    function showActiveAvatarById(id){
+      const holder = document.getElementById('activeAvatarHolder');
+      const target = document.getElementById('activeAvatar');
+      if(!holder || !target) return;
+      const p = players.find(x=>x.id===id);
+      if(!p){ holder.style.display='none'; target.innerHTML=''; return; }
+      // Render large avatar SVG (reuse renderAvatarSVG but without wrapper sizing)
+      const def = document.querySelector('#' + p.avatar);
+      if(def){
+        target.innerHTML = `<svg width="160" height="160" viewBox="0 0 200 200" aria-hidden="true"><use href="#${p.avatar}"></use></svg>`;
+      } else {
+        target.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${escapeHtml(p.name.charAt(0).toUpperCase())}</div>`;
+      }
+      holder.style.display='flex';
+      holder.setAttribute('aria-hidden','false');
+    }
+
+    function hideActiveAvatar(){ const holder = document.getElementById('activeAvatarHolder'); if(holder){ holder.style.display='none'; const t = document.getElementById('activeAvatar'); if(t) t.innerHTML=''; holder.setAttribute('aria-hidden','true'); } }
+
+    // assistant pointer cue
+    function updateAssistantPointer(type, name){
+      let el = document.getElementById('assistantPointer');
+      if(type == null){ if(el) el.remove(); return; }
+      if(!el){
+        const parent = document.querySelector('.assistant');
+        if(!parent) return;
+        el = document.createElement('div'); el.id='assistantPointer'; el.className='assistant-pointer anim-bounce';
+        parent.appendChild(el);
+      }
+      if(type === 'submit'){
+        el.innerHTML = `<span class="ap-emoji">🎯</span><span>Now: <strong>${escapeHtml(name)}</strong> — Submitter</span>`;
+      } else if(type === 'guess'){
+        el.innerHTML = `<span class="ap-emoji">👀</span><span>Now: <strong>${escapeHtml(name)}</strong> — Guesser</span>`;
+      }
+    }
+
+    function clearAssistantPointer(){ const el = document.getElementById('assistantPointer'); if(el) el.remove(); }
+
     // --- Player actions ---
     addPlayerBtn.addEventListener('click', ()=>{
       const name = usernameEl.value.trim();
       if(!name) return alert('Please enter a username');
       if(players.length>=MAX_PLAYERS) return alert('Max players reached');
       players.push({id:uid(),name, avatar:avatarSelect.value, score:0});
+      // reset form and move focus back to username for quick next entry
       usernameEl.value=''; avatarSelect.value=AVATARS[0].id;
+      try{ usernameEl.focus(); }catch(e){}
       renderPlayers();
       assistantSay('Welcome ' + name + '! Ready to party 🎉');
     });
@@ -526,6 +670,7 @@
       revealPanel.style.display='none';
       assistantDare.style.display='none';
       confettiHolder.innerHTML='';
+      try{ if(roleStatus) roleStatus.innerHTML = ''; }catch(e){}
       // show add-player form again
       if(playerFormEl) playerFormEl.style.display = 'block';
       renderPlayers();
@@ -548,7 +693,9 @@
       submitterPanel.style.display='none';guessPanel.style.display='none';revealPanel.style.display='none';assistantDare.style.display='none';
       if(!players.length){statusBanner.textContent='Lobby: add players and press Start';assistUse.setAttribute('href','#fox');assistantSay('Hi! Add players to begin the party 🎉');renderPlayers();return}
       const submitter = players[currentRound % players.length];
-      statusBanner.textContent = `Round: ${currentRound+1} — ${submitter.name} is the Submitter`;
+      statusBanner.textContent = `Round: ${currentRound+1} — ${submitter.name}'s turn`;
+      // update visible role status so it's obvious who is submitting
+      try{ if(roleStatus) roleStatus.innerHTML = `<span class="role-banner submit"><span class="rb-emoji">🎯</span><span style="margin-left:8px"><strong>${escapeHtml(submitter.name)}</strong> — Submitter</span></span>`; }catch(e){}
       // show submitter panel
       submitterPanel.style.display='block';submitterNameEl.textContent = submitter.name;
       s1.value='';s2.value='';s3.value='';
@@ -558,7 +705,9 @@
       // assistant picks art
       const art = pickRandom(AVATARS.map(a=>a.id));assistUse.setAttribute('href','#'+art);
       assistantSay(`${submitter.name}, enter two truths and one lie!`);
+      // render players first so DOM nodes exist, then highlight submitter and show banners/pointer
       renderPlayers();
+      try{ highlightPlayerById(submitter.id, 'submit'); updateAssistantPointer('submit', submitter.name); }catch(e){}
     }
 
     publishBtn.addEventListener('click', ()=>{
@@ -584,6 +733,8 @@
 
     function showGuesserView(submitterName){
       submitterPanel.style.display='none';guessPanel.style.display='block';revealPanel.style.display='none';
+      // Hide submitter banner and active avatar when entering guess view
+      try{ hideSubmitterBanner(); hideActiveAvatar(); document.querySelectorAll('.player-meta.highlight-sender').forEach(m=>m.classList.remove('highlight-sender')); }catch(e){}
       byWho.textContent = submitterName;statementsArea.innerHTML='';
       // randomize statements order
       const order = [0,1,2].sort(()=>Math.random()-0.5);
@@ -608,6 +759,16 @@
         const curEl = document.getElementById('currentGuesserName');
         if(curEl) curEl.textContent = friendly;
         if(hintEl) hintEl.textContent = `Current guesser: ${friendly} — Tap a card to guess.`;
+        // highlight current guesser in the player list
+        try{ clearGuessHighlights(); highlightPlayerById(gid, 'guess'); showGuesserBanner(friendly); updateAssistantPointer('guess', friendly); if(curEl) curEl.textContent = '🕵️ ' + friendly; }catch(e){}
+        // update roleStatus to show both submitter and current guesser
+        try{
+          if(roleStatus){
+            const submitter = players.find(p=>p.id===roundState.submitterId);
+            const subName = submitter ? submitter.name : submitterName;
+            roleStatus.innerHTML = `<span class="role-banner submit"><span class="rb-emoji">🎯</span><span style="margin-left:8px"><strong>${escapeHtml(subName)}</strong> — Submitter</span></span> <span style="margin-left:8px"></span> <span class="role-banner guess" style="margin-left:8px"><span class="rb-emoji">🕵️</span><span style="margin-left:8px"><strong>${escapeHtml(friendly)}</strong> — Guesser</span></span>`;
+          }
+        }catch(e){}
       }
       updateGuessHint();
 
@@ -699,6 +860,10 @@
         try{ if(typeof playPoint === 'function') playPoint(); if(typeof playIncorrect === 'function') setTimeout(()=>playIncorrect(),120); }catch(e){}
         try{ showWinnerAnnouncement([submitter.name]); }catch(e){}
       }
+
+      // clear highlights and banners after reveal (submitter had been highlighted earlier)
+      try{ clearAllPlayerHighlights(); hideSubmitterBanner(); hideGuesserBanner(); clearAssistantPointer(); }catch(e){}
+      try{ if(roleStatus) roleStatus.innerHTML = ''; }catch(e){}
 
       // Dares for wrong guessers (assign one random dare per loser and show them together)
       if(wrongGuessers.length){
@@ -830,6 +995,79 @@
         soundToggleBtn.setAttribute('aria-pressed', String(!soundEnabled));
       });
     }
+
+    // --- Keyboard: allow Enter to advance where appropriate ---
+    function isTextAreaOrEditable(el){
+      if(!el) return false;
+      const t = el.tagName && el.tagName.toLowerCase();
+      return t === 'textarea' || el.isContentEditable === true;
+    }
+
+    function handleEnterKey(e){
+      if(!(e.key === 'Enter' || e.keyCode === 13)) return;
+      if(e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+      const active = document.activeElement;
+      if(isTextAreaOrEditable(active)) return; // allow newlines in textareas
+
+      // 1) Player add form: Enter in the username should move focus to avatar select first.
+      // Pressing Enter on the avatar select (or after choosing avatar) will submit Add Player.
+      if(playerFormEl && playerFormEl.style.display !== 'none'){
+        const name = usernameEl.value && usernameEl.value.trim();
+        // If user is typing username and avatarSelect is available, move focus to avatarSelect
+        if(active === usernameEl){
+          if(avatarSelect && avatarSelect.style.display !== 'none'){
+            e.preventDefault();
+            try{ avatarSelect.focus(); }catch(e){}
+            return;
+          }
+          // fallback: if no avatar selector, submit when name present
+          if(name && !avatarSelect){ e.preventDefault(); addPlayerBtn.click(); return; }
+        }
+
+        // If focus is on avatarSelect or anywhere inside the player form (after choosing avatar), submit when valid
+        if((active === avatarSelect) || (active && playerFormEl.contains(active))){
+          if(name && (!avatarSelect || avatarSelect.value)){
+            e.preventDefault(); addPlayerBtn.click(); return;
+          }
+        }
+      }
+
+      // 2) Submitter panel: Enter moves focus between statement inputs, then to lie radios, and finally publishes
+      if(submitterPanel && submitterPanel.style.display !== 'none'){
+        const a = s1.value && s1.value.trim();
+        const b = s2.value && s2.value.trim();
+        const c = s3.value && s3.value.trim();
+        const sel = document.querySelector('input[name="lie"]:checked');
+        // If focused on statement 1 -> move to statement 2
+        if(active === s1){ e.preventDefault(); try{s2.focus();}catch(e){}; return; }
+        // If focused on statement 2 -> move to statement 3
+        if(active === s2){ e.preventDefault(); try{s3.focus();}catch(e){}; return; }
+        // If focused on statement 3 -> move to first lie radio (if present)
+        if(active === s3){
+          const firstRadio = document.querySelector('input[name="lie"]');
+          if(firstRadio){ e.preventDefault(); try{ firstRadio.focus(); }catch(e){}; return; }
+        }
+        // If focus is on a lie radio element (or anywhere in submitter panel) and all values are present, publish
+        if((submitterPanel.contains(active) || active && active.tagName) && a && b && c && sel){ e.preventDefault(); publishBtn.click(); return; }
+      }
+
+      // 3) Guess panel: Enter acts like clicking the first available statement for the current guesser
+      if(guessPanel && guessPanel.style.display !== 'none' && typeof roundState === 'object' && roundState){
+        const idx = roundState.nextGuesserIndex || 0;
+        const gid = roundState.guessOrder && roundState.guessOrder[idx];
+        if(gid && roundState.guesses && roundState.guesses[gid] == null){
+          const firstStmt = statementsArea && statementsArea.querySelector && statementsArea.querySelector('.statement');
+          if(firstStmt){ e.preventDefault(); firstStmt.click(); return; }
+        }
+      }
+
+      // 4) Reveal panel: Enter advances to next round
+      if(revealPanel && revealPanel.style.display !== 'none'){
+        e.preventDefault(); nextRoundBtn.click(); return;
+      }
+    }
+
+    document.addEventListener('keydown', handleEnterKey, true);
 
     document.addEventListener('DOMContentLoaded', ()=>{renderPlayers();});
 
